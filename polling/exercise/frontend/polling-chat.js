@@ -15,13 +15,35 @@ chat.addEventListener("submit", function (e) {
 });
 
 async function postNewMsg(user, text) {
-  // post to /poll a new message
-  // write code here
+  const data = { user, text };
+  console.log("body", user, text);
+
+  const options = {
+    method: "POST",
+    body: JSON.stringify(data),
+    headers: { "Content-Type": "application/json" },
+  };
+  const res = await fetch("/poll", options);
+
+  const json = await res.json();
+  console.log("response from post", json);
 }
 
 async function getNewMsgs() {
-  // poll the server
-  // write code here
+  let json;
+  try {
+    const res = await fetch("/poll");
+    json = await res.json();
+
+    if (res.status >= 400) {
+      throw new Error("request didnot succed", res.status);
+    }
+  } catch (error) {
+    failedRequest++;
+  }
+  allChat = json.msg;
+  render();
+  setTimeout(getNewMsgs, INTERVAL);
 }
 
 function render() {
@@ -38,4 +60,22 @@ const template = (user, msg) =>
   `<li class="collection-item"><span class="badge">${user}</span>${msg}</li>`;
 
 // make the first request
-getNewMsgs();
+// getNewMsgs();
+const BACKOFF = 5000;
+let failedRequest = 0;
+let timeToMakeNExtRequest = 0;
+async function rafTimer(time) {
+  if (timeToMakeNExtRequest <= time) {
+    await getNewMsgs();
+    timeToMakeNExtRequest = time + INTERVAL + failedRequest * BACKOFF;
+    console.log(
+      "calc",
+      failedRequest,
+      failedRequest * BACKOFF,
+      timeToMakeNExtRequest
+    );
+  }
+  requestAnimationFrame(rafTimer);
+}
+
+requestAnimationFrame(rafTimer);
